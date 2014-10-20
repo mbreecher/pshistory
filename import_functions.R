@@ -1,0 +1,157 @@
+#I wanted to separate import and cleanup functions to minimize the noise in the aggregation
+
+
+import_timelog <- function(name = "timelog_for_ps_history.csv"){
+    #import and cleanup timelog
+    timelog <- read.csv(name, header = T , stringsAsFactors=F)
+    
+    #trim footer information by removing rows without a valid value for services ID
+    timelog <- timelog[substr(timelog$Services.ID,0,3) == "a01", ]
+    
+    #cleanup names and data values
+    names(timelog)[names(timelog) == "User..Full.Name"] <- "User"
+    names(timelog)[names(timelog) == "Services..Service.Name"] <- "Service"
+    timelog$CIK <- as.numeric(timelog$CIK)
+    timelog$Hours <- as.numeric(timelog$Hours)
+    timelog$Date <- as.Date(timelog$Date, format = "%m/%d/%Y")
+    #timelog$Week <- format(timelog$Date, format = "%Y-%U")
+    timelog$Filing.Date <- as.Date(timelog$Filing.Date, format = "%m/%d/%Y")
+    timelog$Filing.Deadline <- as.Date(timelog$Filing.Deadline, format = "%m/%d/%Y")
+    timelog <- timelog[!is.na(timelog$Hours) && !is.na(timelog$Date),]
+    #Construct the Period Identifiers for service grouping
+    timelog$filingPeriod <- paste(as.numeric(format(timelog$Date, "%Y")), ceiling(as.numeric(format(timelog$Date, "%m"))/4), sep = "")
+    timelog$reportingPeriod <- ifelse(substr(timelog$filingPeriod, nchar(timelog$filingPeriod), nchar(timelog$filingPeriod)) == 1,
+          paste(as.numeric(format(timelog$Date, "%Y")) -1, 4, sep = ""),
+          paste(as.numeric(format(timelog$Date, "%Y")), ceiling(as.numeric(format(timelog$Date, "%m"))/4) - 1, sep = ""))
+    
+    #change Billable from boolean to 
+    
+    #aggregate time by billable and non-billable
+    time_billable <- aggregate(timelog$Hours, by=list(timelog$Account.Name, timelog$reportingPeriod, timelog$Billable), FUN = sum)
+    names(time_billable) <- c("Account.Name", "reportingPeriod", "Billable", "Hours") #change names to something meaningful
+    time_billable[time_billable$Billable == 0, ]$Billable <- rep("Full Service", dim(time_billable[time_billable$Billable == 0, ])[1])  
+    time_billable[time_billable$Billable == 1, ]$Billable <- rep("Billable", dim(time_billable[time_billable$Billable == 1, ])[1])
+    #aggregate total time
+    time_total <- aggregate(timelog$Hours, by=list(timelog$Account.Name, timelog$reportingPeriod), FUN = sum)
+    names(time_total) <- c("Account.Name", "reportingPeriod", "Hours") #change names to something meaningful
+    time_total$Billable <- rep("Total", dim(time_total)[1]) #add billable status
+    time_total <- time_total[,names(time_billable)] #rearrange to match ordering in time_by_qtr
+    
+    time_all <- rbind(time_billable, time_total)
+    
+    time_all <- dcast(time_all, Account.Name ~ reportingPeriod + Billable)
+
+    time_all
+}
+
+import_services <- function(name = "services_for_ps_history.csv"){
+    ##import services report
+    services <- read.csv(name, header = T , stringsAsFactors=F)
+    
+    #trim footer information by removing rows without a valid value for services ID
+    services <- services[substr(services$Solution.Name,0,3) == "SEC", ]
+    
+    #cleanup names and data values
+    names(services)[names(services) == "Account..Account.Name"] <- "Account.Name"
+    names(services)[names(services) == "PSM..Full.Name"] <- "PSM"
+    names(services)[names(services) == "Sr.PSM..Full.Name"] <- "Sr.PSM"
+    names(services)[names(services) == "CSM..Full.Name"] <- "CSM"
+    names(services)[names(services) == "Sr.CSM..Full.Name"] <- "Sr.CSM"
+    names(services)[names(services) == "Churned.Effective.Date"] <- "Churn.Date"
+    services$Form.Type[services$Form.Type == 'N/A'] <- NA
+    services$Quarter.End <- as.Date(services$Quarter.End, format = "%m/%d/%Y")
+    services$Filing.Date <- as.Date(services$Filing.Date, format = "%m/%d/%Y")
+    services$Filing.Deadline <- as.Date(services$Filing.Deadline, format = "%m/%d/%Y")
+    services$Year.End <- format(services$Year.End, format = "%Y-%U")
+    
+    base_info <- c("Account.Name", "CIK", "CSM", "Sr.CSM", "PSM", "Sr.PSM")
+    unique_customers <- unique(services[ ,colnames(services) %in% base_info]) #a complete list of customers.
+    unique_customers <- as.data.frame(unique_customers)
+    #names(unique_customers) <- base_info
+    unique_customers <- unique_customers[,c("Account.Name", "CIK", "CSM", "Sr.CSM", "PSM", "Sr.PSM")]
+
+    services <- services[services$CS.PS != 'CS' & services$Service.Type != "Training",] #remove all CS services. 
+    
+    # logic to calculate filing period and reporting period
+    services <- services[!is.na(services$Quarter.End), ] #remove services without quarter ends (can't place them)
+    
+    #calculate filing deadline estimate for all projects
+    #for services with form type and registrant type, set reporting offset, then calculate filing.estimate 
+    services$reportingOffset <- paste(services$Registrant.Type, services$Form.Type, Sep = "") #placeholder lookup value
+    #set offsets for Qs
+    services$reportingOffset[services$reportingOffset %in% c("Smaller Reporting Company K-Q ", "Smaller Reporting Company 10-Q ", "Smaller Reporting Company Q-Q ")] <- 45
+    services$reportingOffset[services$reportingOffset %in% c("Non-Accelerated Filer K-Q ", "Non-Accelerated Filer 10-Q ", "Non-Accelerated Filer Q-Q ")] <- 45
+    services$reportingOffset[services$reportingOffset %in% c("Accelerated Filer K-Q ", "Accelerated Filer 10-Q ", "Accelerated Filer Q-Q ")] <- 40
+    services$reportingOffset[services$reportingOffset %in% c("Large Accelerated Filer K-Q ", "Large Accelerated Filer 10-Q ", "Large Accelerated Filer Q-Q ")] <- 40
+    #set offsets for Ks
+    services$reportingOffset[services$reportingOffset %in% c("Smaller Reporting Company Q-K ", "Smaller Reporting Company 10-K ", "Smaller Reporting Company K-K ")] <- 90
+    services$reportingOffset[services$reportingOffset %in% c("Non-Accelerated Filer Q-K ", "Non-Accelerated Filer 10-K ", "Non-Accelerated Filer K-K ")] <- 90
+    services$reportingOffset[services$reportingOffset %in% c("Accelerated Filer Q-K ", "Accelerated Filer 10-K ", "Accelerated Filer K-K ")] <- 75
+    services$reportingOffset[services$reportingOffset %in% c("Large Accelerated Filer Q-K ", "Large Accelerated Filer 10-K ", "Large Accelerated Filer K-K ", "Large Accelerated Filer 20-F - 20-F ")] <- 60
+    #
+    services$reportingOffset[!(services$reportingOffset %in% c(40, 45, 60, 75, 90))] = NA
+    
+    #with report offset, calculate filing deadline estimate
+    services$filing.estimate <- rep(NA, dim(services)[1])
+    services$filing.estimate <- as.Date(services$filing.estimate)
+    services[services$reportingOffset %in% c(40, 45, 60, 75, 90), ]$filing.estimate <- 
+      as.Date(services[services$reportingOffset %in% c(40, 45, 60, 75, 90),]$Quarter.End) + 
+      as.numeric(services[services$reportingOffset %in% c(40, 45, 60, 75, 90),]$reportingOffset)
+    #for services without both form type and registrant type, use the filing date reported (if available)
+    services[is.na(services$filing.estimate) & !is.na(services$Filing.Date), ]$filing.estimate <- services[is.na(services$filing.estimate) & !is.na(services$Filing.Date), ]$Filing.Date
+    #handle foreign issuer cases
+    #case for 6-Ks and 10-Qs
+    services[services$Registrant.Type == "Foreign Issuer" & services$Form.Type %in% c("10-Q", "6-K"), ]$filing.estimate <- 
+      as.Date(services[services$Registrant.Type == "Foreign Issuer" & services$Form.Type %in% c("10-Q", "6-K"),]$Quarter.End) + 45
+    #case for 10-Ks
+    services[services$Registrant.Type == "Foreign Issuer" & services$Form.Type %in% c("10-K"), ]$filing.estimate <- 
+      as.Date(services[services$Registrant.Type == "Foreign Issuer" & services$Form.Type %in% c("10-K"),]$Quarter.End) + 90
+    #take the filing deadline in the system at this point (if available).
+    services[is.na(services$filing.estimate) & !is.na(services$Filing.Deadline), ]$filing.estimate <- 
+      as.Date(services[is.na(services$filing.estimate) & !is.na(services$Filing.Deadline), ]$Filing.Deadline)
+    #anyone with no registrant type set, estimate 40 days for 10-Qs and 60 for a 10-Ks and 20-Fs
+    services[services$Registrant.Type == "" & services$Form.Type %in% c("10-K", "Q-K", "K-K", "20-F"), ]$filing.estimate <- 
+      as.Date(services[services$Registrant.Type == "" & services$Form.Type %in% c("10-K", "Q-K", "K-K", "20-F", "20-F - 20-F"), ]$Quarter.End) + 60
+    services[services$Registrant.Type == "" & services$Form.Type %in% c("10-Q", "K-Q", "Q-Q"), ]$filing.estimate <- 
+      as.Date(services[services$Registrant.Type == "" & services$Form.Type %in% c("10-Q", "K-Q", "Q-Q"), ]$Quarter.End) + 40
+    #for remaining services, estimate 40 days
+    services[is.na(services$filing.estimate), ]$filing.estimate <- 
+      as.Date(services[is.na(services$filing.estimate), ]$Quarter.End) + 40
+    
+    #Construct the Period Identifiers for service grouping
+    services$filingPeriod <- paste(as.numeric(format(services$Quarter.End, "%Y")), ceiling(as.numeric(format(services$Quarter.End, "%m"))/4), sep = "")
+    services$reportingPeriod <- ifelse(substr(services$filingPeriod, nchar(services$filingPeriod), nchar(services$filingPeriod)) == 1,
+                                      paste(as.numeric(format(services$Quarter.End, "%Y")) -1, 4, sep = ""),
+                                      paste(as.numeric(format(services$Quarter.End, "%Y")), ceiling(as.numeric(format(services$Quarter.End, "%m"))/4) - 1, sep = ""))
+    
+    svc_by_qtr <- aggregate(services$Service.Name, by=list(services$Account.Name, services$reportingPeriod), paste, collapse = "\n")
+    names(svc_by_qtr) <- c("Account.Name", "reportingPeriod", "Services")
+    svc_by_qtr <- dcast(svc_by_qtr, Account.Name ~ reportingPeriod)
+    #remove?
+    svc_by_qtr <- sapply(svc_by_qtr, function(x) ifelse(x == "NULL", NA, x)) #change NULLs produced by dcast into NAs
+    
+    #included <- c("Account.Name")
+    #merged <- merge(unique_customers, unique(services[, colnames(services) %in% included]), by = "Account.Name", all.x = T)
+    #merged <- merge(merged, svc_by_qtr, by = "Account.Name", all.x = T)
+    merged <- merge(unique_customers, svc_by_qtr, by = "Account.Name", all.x = T)
+    
+    merged
+}
+
+import_sec <- function(name = "filing_data.csv" ){
+  facts <- read.csv(name, header = T , stringsAsFactors=F)
+  
+  #remove extra fields to remove potential for incomplete cases due to something extraneous
+  valid_list <- c("accession_number", "name", "cik", "sic", "form", "form_group", 
+             "filing_date", "filing_qtr", "filing_month", "facts", "xbrl_software")
+  facts <- facts[, names(facts) %in% valid_list]
+  facts <- facts[facts$xbrl_software == "WebFilings", ]
+  #remove incomplete cases
+  facts <- facts[complete.cases(facts),]
+  #cast columns properly
+  facts$filing_date <- as.Date(facts$filing_date, format = "%m/%d/%Y")
+  facts$facts <- as.numeric(facts$facts)
+  facts <- facts[facts$form_group %in% c("tens", "amend"),]
+  facts <- facts[rev(order(facts$filing_date)), ]
+  facts
+}
