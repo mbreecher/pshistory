@@ -19,10 +19,10 @@ import_timelog <- function(name = "timelog_for_ps_history.csv"){
     timelog$Filing.Deadline <- as.Date(timelog$Filing.Deadline, format = "%m/%d/%Y")
     timelog <- timelog[!is.na(timelog$Hours) && !is.na(timelog$Date),]
     #Construct the Period Identifiers for service grouping
-    timelog$filingPeriod <- paste(as.numeric(format(timelog$Date, "%Y")), ceiling(as.numeric(format(timelog$Date, "%m"))/4), sep = "")
+    timelog$filingPeriod <- paste(as.numeric(format(timelog$Date, "%Y")), ceiling(as.numeric(format(timelog$Date, "%m"))/3), sep = "")
     timelog$reportingPeriod <- ifelse(substr(timelog$filingPeriod, nchar(timelog$filingPeriod), nchar(timelog$filingPeriod)) == 1,
           paste(as.numeric(format(timelog$Date, "%Y")) -1, 4, sep = ""),
-          paste(as.numeric(format(timelog$Date, "%Y")), ceiling(as.numeric(format(timelog$Date, "%m"))/4) - 1, sep = ""))
+          paste(as.numeric(format(timelog$Date, "%Y")), ceiling(as.numeric(format(timelog$Date, "%m"))/3) - 1, sep = ""))
     
     #change Billable from boolean to 
     
@@ -119,10 +119,10 @@ import_services <- function(name = "services_for_ps_history.csv"){
       as.Date(services[is.na(services$filing.estimate), ]$Quarter.End) + 40
     
     #Construct the Period Identifiers for service grouping
-    services$filingPeriod <- paste(as.numeric(format(services$Quarter.End, "%Y")), ceiling(as.numeric(format(services$Quarter.End, "%m"))/4), sep = "")
+    services$filingPeriod <- paste(as.numeric(format(services$filing.estimate, "%Y")), ceiling(as.numeric(format(services$filing.estimate, "%m"))/3), sep = "")
     services$reportingPeriod <- ifelse(substr(services$filingPeriod, nchar(services$filingPeriod), nchar(services$filingPeriod)) == 1,
-                                      paste(as.numeric(format(services$Quarter.End, "%Y")) -1, 4, sep = ""),
-                                      paste(as.numeric(format(services$Quarter.End, "%Y")), ceiling(as.numeric(format(services$Quarter.End, "%m"))/4) - 1, sep = ""))
+                                      paste(as.numeric(format(services$filing.estimate, "%Y")) -1, 4, sep = ""),
+                                      paste(as.numeric(format(services$filing.estimate, "%Y")), ceiling(as.numeric(format(services$filing.estimate, "%m"))/3) - 1, sep = ""))
     
     svc_by_qtr <- aggregate(services$Service.Name, by=list(services$Account.Name, services$reportingPeriod), paste, collapse = "\n")
     names(svc_by_qtr) <- c("Account.Name", "reportingPeriod", "Services")
