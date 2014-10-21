@@ -3,6 +3,7 @@
 
 import_timelog <- function(name = "timelog_for_ps_history.csv"){
     #import and cleanup timelog
+    setwd('C:/R/workspace/pshistory/source')
     timelog <- read.csv(name, header = T , stringsAsFactors=F)
     
     #trim footer information by removing rows without a valid value for services ID
@@ -27,12 +28,12 @@ import_timelog <- function(name = "timelog_for_ps_history.csv"){
     #change Billable from boolean to 
     
     #aggregate time by billable and non-billable
-    time_billable <- aggregate(timelog$Hours, by=list(timelog$Account.Name, timelog$reportingPeriod, timelog$Billable), FUN = sum)
+    time_billable <- aggregate(Hours ~ Account.Name + reportingPeriod + Billable, FUN = sum, data = timelog)
     names(time_billable) <- c("Account.Name", "reportingPeriod", "Billable", "Hours") #change names to something meaningful
     time_billable[time_billable$Billable == 0 & !is.na(time_billable$Billable), ]$Billable <- rep("Full Service", dim(time_billable[time_billable$Billable == 0 & !is.na(time_billable$Billable), ])[1])  
     time_billable[time_billable$Billable == 1  & !is.na(time_billable$Billable), ]$Billable <- rep("Billable", dim(time_billable[time_billable$Billable == 1 & !is.na(time_billable$Billable), ])[1])
     #aggregate total time
-    time_total <- aggregate(timelog$Hours, by=list(timelog$Account.Name, timelog$reportingPeriod), FUN = sum)
+    time_total <- aggregate(Hours ~ Account.Name + reportingPeriod, FUN = sum, data = timelog)
     names(time_total) <- c("Account.Name", "reportingPeriod", "Hours") #change names to something meaningful
     time_total$Billable <- rep("Total", dim(time_total)[1]) #add billable status
     time_total <- time_total[,names(time_billable)] #rearrange to match ordering in time_by_qtr
