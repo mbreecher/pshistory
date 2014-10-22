@@ -70,11 +70,20 @@ import_services <- function(name = "services_for_ps_history.csv"){
     base_info <- c("Account.Name", "CIK", "CSM", "Sr.CSM", "PSM", "Sr.PSM")
     #certain customer service lin items don't populate account info. We need to do that manually to prevent data duplication
     account_data <- services[,colnames(services) %in% base_info]
-    account_data <- unique(account_data[!is.na(account_data$CSM) & !(account_data$CSM %in% c('')) ,])
+    account_data <- unique(account_data)
     unique_customers <- as.data.frame(unique(services[ ,colnames(services) %in% c('Account.Name')])) #a complete list of customers.
     names(unique_customers)[1] <- "Account.Name"
-    unique_customers <- merge(unique_customers, account_data, by = "Account.Name", all.x = T )
-    #names(unique_customers) <- base_info
+    
+    #merge selectively to favor more information
+    mergePS <- merge(unique_customers, account_data[!is.na(account_data$PSM) & !(account_data$PSM %in% c('')) ,], by = "Account.Name")
+    customers_left <- as.data.frame(unique_customers[!(unique_customers$Account.Name %in% mergePS$Account.Name), 1 ])
+    names(customers_left)[1] <- "Account.Name"
+    mergeCS <- merge(customers_left, account_data[!is.na(account_data$CSM) & !(account_data$CSM %in% c('')),], by = "Account.Name")
+    customers_left <- as.data.frame(unique_customers[!(unique_customers$Account.Name %in% mergePS$Account.Name | unique_customers$Account.Name %in% mergeCS$Account.Name), 1])
+    names(customers_left)[1] <- "Account.Name"
+    mergeNO <- merge(customers_left, account_data, by = "Account.Name")
+    
+    unique_customers <- rbind(mergePS, rbind(mergeCS, mergeNO))
     unique_customers <- unique_customers[,c("Account.Name", "CIK", "CSM", "Sr.CSM", "PSM", "Sr.PSM")]
     
     # logic to calculate filing period and reporting period
@@ -137,9 +146,7 @@ import_services <- function(name = "services_for_ps_history.csv"){
     #remove?
     svc_by_qtr <- sapply(svc_by_qtr, function(x) ifelse(x %in% c("NULL"), NA, x)) #change NULLs produced by dcast into NAs
     
-    #included <- c("Account.Name")
-    #merged <- merge(unique_customers, unique(services[, colnames(services) %in% included]), by = "Account.Name", all.x = T)
-    #merged <- merge(merged, svc_by_qtr, by = "Account.Name", all.x = T)
+    #join unique customers with dcast services    
     merged <- merge(unique_customers, svc_by_qtr, by = "Account.Name", all.x = T)
     merged <- merged[order(merged$Account.Name), ]
     
