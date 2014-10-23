@@ -5,6 +5,7 @@ import_timelog <- function(name = "timelog_for_ps_history.csv"){
     #import and cleanup timelog
     setwd('C:/R/workspace/pshistory/source')
     timelog <- read.csv(name, header = T , stringsAsFactors=F)
+    start_dates <- read.csv("ps_start_dates.csv", header = T , stringsAsFactors=F)
     
     #trim footer information by removing rows without a valid value for services ID
     timelog <- timelog[substr(timelog$Services.ID,0,3) %in% c("a01"), ]
@@ -19,13 +20,36 @@ import_timelog <- function(name = "timelog_for_ps_history.csv"){
     timelog$Filing.Date <- as.Date(timelog$Filing.Date, format = "%m/%d/%Y")
     timelog$Filing.Deadline <- as.Date(timelog$Filing.Deadline, format = "%m/%d/%Y")
     timelog <- timelog[!is.na(timelog$Hours) && !is.na(timelog$Date),]
+    start_dates$Start.Date <- as.Date(start_dates$Start.Date, format = "%m/%d/%Y")
+    start_dates$End.Date <- as.Date(start_dates$End.Date, format = "%m/%d/%Y")
+    
+    #need to remove non-psm time. 
+    timelog$is_psm <- NA
+    #case 1: Known PSMs
+    timelog[timelog$User %in% start_dates[is.na(start_dates$Start.Date) & is.na(start_dates$End.Date), ]$Full.Name, ]$is_psm <- 1 #with no movement in position
+    for (psm in start_dates[!is.na(start_dates$Start.Date) | !is.na(start_dates$End.Date), ]$Full.Name) {#need to subset for each psm
+      if (!is.na(start_dates[start_dates$Full.Name %in% psm, ]$Start.Date)){
+        timelog[timelog$User %in% psm & !is.na(timelog$User) & timelog$Date >= start_dates[start_dates$Full.Name == psm, ]$Start.Date, ]$is_psm <- 1
+        timelog[timelog$User %in% psm & !is.na(timelog$User) & timelog$Date < start_dates[start_dates$Full.Name == psm, ]$Start.Date, ]$is_psm <- 0
+      }
+      if (!is.na(start_dates[start_dates$Full.Name %in% psm, ]$End.Date)){
+        timelog[timelog$User %in% psm & !is.na(timelog$User) & timelog$Date <= start_dates[start_dates$Full.Name == psm, ]$End.Date, ]$is_psm <- 1 
+        timelog[timelog$User %in% psm & !is.na(timelog$User) & timelog$Date > start_dates[start_dates$Full.Name == psm, ]$End.Date, ]$is_psm <- 0
+      }
+    }
+    #case 2: unknown PSMs
+    ps_titles <- c("Senior Professional Services Manager", "Professional Services Manager")
+    timelog[timelog$User.Title %in% ps_titles & is.na(timelog$is_psm), ]$is_psm <- 1
+    
+    #now all relevant time is marked, remove 0 and na time from timelog
+    timelog2 <- timelog[timelog$is_psm == 1 & !is.na(timelog$is_psm), ]
+    
     #Construct the Period Identifiers for service grouping
     timelog$filingPeriod <- paste(as.numeric(format(timelog$Date, "%Y")), ceiling(as.numeric(format(timelog$Date, "%m"))/3), sep = "")
     timelog$reportingPeriod <- ifelse(substr(timelog$filingPeriod, nchar(timelog$filingPeriod), nchar(timelog$filingPeriod)) == 1,
           paste(as.numeric(format(timelog$Date, "%Y")) -1, 4, sep = ""),
           paste(as.numeric(format(timelog$Date, "%Y")), ceiling(as.numeric(format(timelog$Date, "%m"))/3) - 1, sep = ""))
     
-    #change Billable from boolean to 
     
     #aggregate time by billable and non-billable
     time_billable <- aggregate(Hours ~ Account.Name + reportingPeriod + Billable, FUN = sum, data = timelog)
