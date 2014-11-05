@@ -13,16 +13,19 @@ setwd('C:/R/workspace/pshistory/source')
 services <- import_services()
 timelog <- import_timelog()
 sec_data <- import_sec()
+sales_rec <- import_sales_recommendations()
 
 pshistory <- merge(services, timelog, "Account.Name", all.x = T)
 recent_filings <- recent_filings (unique(services$Account.Name), sec_data)
 pshistory <- merge(pshistory, recent_filings, "Account.Name", all.x = T)
+pshistory <- merge(pshistory, sales_rec, "Account.Name", all.x = T)
 
 #reorder columns
-names <- c( names(services[,grep('[a-z,A-Z]+', names(services), perl = T)]), #character column names
+names <- c( names(services[grep('[a-z,A-Z]+', names(services), perl = T)]), #character column names
             names(recent_filings)[!(names(recent_filings) %in% c("Account.Name"))], #filing information
-            names(services[,grep('[1-9]+', names(services), perl = T)]), #remaining services data
-            names(timelog[,grep('[1-9]+', names(timelog), perl = T)])) #timelog data
+            names(services[grep('[1-9]+', names(services), perl = T)]), #scheduled services data
+            names(sales_rec)[grep('[1-9]+', names(sales_rec), perl = T)], #sales recommendations
+            names(timelog[grep('[1-9]+', names(timelog), perl = T)])) #timelog data
 
 pshistory <- pshistory[,names]
 

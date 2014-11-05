@@ -179,6 +179,7 @@ import_services <- function(name = "services_for_ps_history_R.csv"){
 }
 
 import_sec <- function(name = "filing_data.csv" ){
+  setwd('C:/R/workspace/pshistory/source')
   facts <- read.csv(name, header = T , stringsAsFactors=F)
   
   #remove extra fields to remove potential for incomplete cases due to something extraneous
@@ -194,4 +195,21 @@ import_sec <- function(name = "filing_data.csv" ){
   facts <- facts[facts$form_group %in% c("tens", "amend"),]
   facts <- facts[rev(order(facts$filing_date)), ]
   facts
+}
+
+import_sales_recommendations <- function(name = "sales_recommendations_for_ps_history.csv" ){
+  setwd('C:/R/workspace/pshistory/source')
+  sales_rec <- read.csv(name, header = T , stringsAsFactors=F)
+  sales_rec$Service.QED <- as.Date(sales_rec$Service.QED, format = "%m/%d/%Y")
+  sales_rec <- sales_rec[!is.na(sales_rec$Service.QED),]
+  sales_rec$period <- paste(as.numeric(format(sales_rec$Service.QED, "%Y")), ceiling(as.numeric(format(sales_rec$Service.QED, "%m"))/3) , sep = "")
+  
+  svc_by_qtr <- aggregate(sales_rec$Product, by=list(sales_rec$Account.Name, sales_rec$period), paste, collapse = "\n")
+  names(svc_by_qtr) <- c("Account.Name", "period", "Services")
+  result <- dcast(svc_by_qtr, Account.Name ~ period)
+  for (i in 1:length(names(result)[grep('[1-9]+', names(result), perl = T)])) {
+       names(result)[grep('[1-9]+', names(result), perl = T)][i] <- 
+         paste(names(result)[grep('[1-9]+', names(result), perl = T)][i] , "Sales Rec", collapse = "\n")
+  }
+  result
 }
