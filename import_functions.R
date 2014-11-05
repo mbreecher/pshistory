@@ -69,7 +69,7 @@ import_timelog <- function(name = "timelog_for_ps_history.csv"){
     time_all
 }
 
-import_services <- function(name = "services_for_ps_history.csv"){
+import_services <- function(name = "services_for_ps_history_R.csv"){
     ##import services report
     setwd('C:/R/workspace/pshistory/source')
     services <- read.csv(name, header = T , stringsAsFactors=F)
@@ -85,13 +85,14 @@ import_services <- function(name = "services_for_ps_history.csv"){
     names(services)[names(services) %in% c("Sr.CSM..Full.Name")] <- "Sr.CSM"
     names(services)[names(services) %in% c("Churned.Effective.Date")] <- "Churn.Date"
     services$Form.Type[services$Form.Type == 'N/A' & !is.na(services$Form.Type)] <- NA
+    services$Goodwill.Hours.Available[services$Goodwill.Hours.Available %in% c("0")] <- NA
     services$Quarter.End <- as.Date(services$Quarter.End, format = "%m/%d/%Y")
     services$Filing.Date <- as.Date(services$Filing.Date, format = "%m/%d/%Y")
     services$Filing.Deadline <- as.Date(services$Filing.Deadline, format = "%m/%d/%Y")
     services$Year.End <- format(services$Year.End, format = "%Y-%U")
     
     #build a lits of unique customers and customer data
-    base_info <- c("Account.Name", "CIK", "CSM", "Sr.CSM", "PSM", "Sr.PSM")
+    base_info <- c("Account.Name", "CIK", "CSM", "Sr.CSM", "PSM", "Sr.PSM", "Churn.Date", "Year.End", "Goodwill.Hours.Available")
     #certain customer service lin items don't populate account info. We need to do that manually to prevent data duplication
     account_data <- services[,colnames(services) %in% base_info]
     account_data <- unique(account_data)
@@ -108,7 +109,7 @@ import_services <- function(name = "services_for_ps_history.csv"){
     mergeNO <- merge(customers_left, account_data, by = "Account.Name")
     
     unique_customers <- rbind(mergePS, rbind(mergeCS, mergeNO))
-    unique_customers <- unique_customers[,c("Account.Name", "CIK", "CSM", "Sr.CSM", "PSM", "Sr.PSM")]
+    unique_customers <- unique_customers[,base_info]
     
     # logic to calculate filing period and reporting period
     services <- services[!is.na(services$Quarter.End), ] #remove services without quarter ends (can't place them)
