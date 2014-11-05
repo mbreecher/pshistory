@@ -23,6 +23,7 @@ recent_filings <- function(names, sec_data){
   }
   result <- as.data.frame(result)
   names(result) <- c("Account.Name", "form", "facts")
+  result$form <- trim.leading(result$form)
   
   result <- dcast(result, Account.Name ~ form)
   result

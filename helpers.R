@@ -22,3 +22,5 @@ lm_eqn <- function(df, order = 3){
                         r2 = format(summary(m)$r.squared, digits = 3)))
   as.character(as.expression(eq))
 }
+
+trim.leading <- function (x)  sub("^\\s+", "", x)

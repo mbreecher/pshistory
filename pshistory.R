@@ -23,7 +23,8 @@ names <- c( names(services[,grep('[a-z,A-Z]+', names(services), perl = T)]), #ch
             names(recent_filings)[!(names(recent_filings) %in% c("Account.Name"))], #filing information
             names(services[,grep('[1-9]+', names(services), perl = T)]), #remaining services data
             names(timelog[,grep('[1-9]+', names(timelog), perl = T)])) #timelog data
-            
+
+pshistory <- pshistory[,names]
 
 
 # code to export 
