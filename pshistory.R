@@ -18,6 +18,14 @@ pshistory <- merge(services, timelog, "Account.Name", all.x = T)
 recent_filings <- recent_filings (unique(services$Account.Name), sec_data)
 pshistory <- merge(pshistory, recent_filings, "Account.Name", all.x = T)
 
+#reorder columns
+names <- c( names(services[,grep('[a-z,A-Z]+', names(services), perl = T)]), #character column names
+            names(recent_filings)[!(names(recent_filings) %in% c("Account.Name"))], #filing information
+            names(services[,grep('[1-9]+', names(services), perl = T)]), #remaining services data
+            names(timelog[,grep('[1-9]+', names(timelog), perl = T)])) #timelog data
+            
+
+
 # code to export 
 setwd('C:/R/workspace/pshistory/output')
 export <- pshistory
