@@ -3,7 +3,7 @@
 
 import_timelog <- function(name = "timelog_for_ps_history.csv"){
     #import and cleanup timelog
-    setwd('C:/R/workspace/pshistory/source')
+    setwd('C:/R/workspace/source')
     timelog <- read.csv(name, header = T , stringsAsFactors=F)
     start_dates <- read.csv("ps_start_dates.csv", header = T , stringsAsFactors=F)
     
@@ -71,7 +71,7 @@ import_timelog <- function(name = "timelog_for_ps_history.csv"){
 
 import_services <- function(name = "services_for_ps_history_R.csv"){
     ##import services report
-    setwd('C:/R/workspace/pshistory/source')
+    setwd('C:/R/workspace/source')
     services <- read.csv(name, header = T , stringsAsFactors=F)
     
     #trim footer information by removing rows without a valid value for services ID
@@ -179,7 +179,7 @@ import_services <- function(name = "services_for_ps_history_R.csv"){
 }
 
 import_sec <- function(name = "filing_data.csv" ){
-  setwd('C:/R/workspace/pshistory/source')
+  setwd('C:/R/workspace/source')
   facts <- read.csv(name, header = T , stringsAsFactors=F)
   
   #remove extra fields to remove potential for incomplete cases due to something extraneous
@@ -198,7 +198,7 @@ import_sec <- function(name = "filing_data.csv" ){
 }
 
 import_sales_recommendations <- function(name = "sales_recommendations_for_ps_history.csv" ){
-  setwd('C:/R/workspace/pshistory/source')
+  setwd('C:/R/workspace/source')
   sales_rec <- read.csv(name, header = T , stringsAsFactors=F)
   sales_rec$Service.QED <- as.Date(sales_rec$Service.QED, format = "%m/%d/%Y")
   sales_rec <- sales_rec[!is.na(sales_rec$Service.QED),]

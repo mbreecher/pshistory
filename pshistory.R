@@ -9,7 +9,7 @@ source("helpers.R")
 source("recent_filings.R")
 
 #import and cleanup
-setwd('C:/R/workspace/pshistory/source')
+setwd('C:/R/workspace/source')
 services <- import_services()
 timelog <- import_timelog()
 sec_data <- import_sec()
