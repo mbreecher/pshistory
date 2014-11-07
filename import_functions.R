@@ -42,7 +42,7 @@ import_timelog <- function(name = "timelog_for_ps_history.csv"){
     timelog[timelog$User.Title %in% ps_titles & is.na(timelog$is_psm), ]$is_psm <- 1
     
     #now all relevant time is marked, remove 0 and na time from timelog
-    timelog2 <- timelog[timelog$is_psm == 1 & !is.na(timelog$is_psm), ]
+    timelog <- timelog[timelog$is_psm == 1 & !is.na(timelog$is_psm), ]
     
     #Construct the Period Identifiers for service grouping
     timelog$filingPeriod <- paste(as.numeric(format(timelog$Date, "%Y")), ceiling(as.numeric(format(timelog$Date, "%m"))/3), sep = "")
