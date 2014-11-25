@@ -1,4 +1,4 @@
-recent_filings <- function(names, sec_data){
+recent_filings <- function(names, sec_data, flag = "standard"){
   setwd("C:/R/workspace/pshistory")
   source("helpers.R")
   
@@ -25,7 +25,11 @@ recent_filings <- function(names, sec_data){
   names(result) <- c("Account.Name", "SEC.Name","CIK",  "form", "facts")
   result$form <- trim.leading(result$form)
   
-  result <- dcast(result, Account.Name ~ form + SEC.Name + CIK)
-  result
+  result <- dcast(result, Account.Name + SEC.Name + CIK ~ form)
+  if (flag %in% "standard"){
+    result[, !names(result) %in% c("SEC.Name", "CIK")]
+  }else if(flag %in% "QA"){
+    result
+  }
   
 }
