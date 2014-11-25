@@ -17,7 +17,7 @@ sec_data <- import_sec()
 sales_rec <- import_sales_recommendations()
 
 pshistory <- merge(services, timelog, "Account.Name", all.x = T)
-recent_filings <- recent_filings (unique(services$Account.Name), sec_data)
+recent_filings <- recent_filings(unique(services[,names(services) %in% c("Account.Name", "CIK")]), sec_data, flag = "QA")
 pshistory <- merge(pshistory, recent_filings, "Account.Name", all.x = T)
 pshistory <- merge(pshistory, sales_rec, "Account.Name", all.x = T)
 
