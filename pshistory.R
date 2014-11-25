@@ -3,15 +3,16 @@ library(plyr)
 library(RecordLinkage)
 
 # Pull in import functions
-setwd('C:/R/workspace/pshistory')
+setwd('C:/R/workspace/shared')
 source("import_functions.R")
+setwd('C:/R/workspace/pshistory')
 source("helpers.R")
 source("recent_filings.R")
 
 #import and cleanup
 setwd('C:/R/workspace/source')
-services <- import_services()
-timelog <- import_timelog()
+services <- import_services(output = 'psh')
+timelog <- import_timelog(output = 'psh')
 sec_data <- import_sec()
 sales_rec <- import_sales_recommendations()
 
