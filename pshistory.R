@@ -9,10 +9,28 @@ setwd('C:/R/workspace/pshistory')
 source("helpers.R")
 source("recent_filings.R")
 
-#import and cleanup
-setwd('C:/R/workspace/source')
-services <- import_services(output = 'psh')
-timelog <- import_timelog(output = 'psh')
+#import base info
+  setwd('C:/R/workspace/source')
+  services <- import_services(output = 'psh')
+  timelog <- import_timelog()
+
+# mold time data to ps history form
+    #aggregate time by billable and non-billable
+    time_billable <- aggregate(Hours ~ Account.Name + reportingPeriod + Billable, FUN = sum, data = timelog)
+    names(time_billable) <- c("Account.Name", "reportingPeriod", "Billable", "Hours") #change names to something meaningful
+    time_billable$xbrl_status <- NA
+    time_billable[time_billable$Billable == 0 & !is.na(time_billable$Billable), ]$xbrl_status <- "Full Service"
+    time_billable[time_billable$Billable == 1  & !is.na(time_billable$Billable), ]$xbrl_status <- "Billable"
+    time_billable <- time_billable[!names(time_billable) %in% "Billable"]
+    #aggregate total time
+    time_total <- aggregate(Hours ~ Account.Name + reportingPeriod, FUN = sum, data = timelog)
+    names(time_total) <- c("Account.Name", "reportingPeriod", "Hours") #change names to something meaningful
+    time_total$xbrl_status <- "Total" #add billable status
+    time_total <- time_total[,names(time_billable)] #rearrange to match ordering in time_by_qtr
+    
+    timelog <- rbind(time_billable, time_total)
+    timelog <- dcast(time_all, Account.Name ~ reportingPeriod + xbrl_status, value.var = "Hours")
+
 sec_data <- import_sec()
 sales_rec <- import_sales_recommendations()
 

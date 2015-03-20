@@ -35,7 +35,7 @@ recent_filings <- function(names, sec_data, flag = "standard"){
     if (dim(loopK)[1] > 0){
       names[names$Account.Name %in% company,]$found <- 2
       loopK <- loopK[rev(order(loopK$filing_date)), ] #redundant, but better to be sure
-      result <- rbind(result, c(company, unique(loopK$name)[1],unique(loopK$cik)[1],  "10-K", loopK[1,"facts"]))
+      result <- rbind(result, c(company, unique(loopK$name)[1],mean(loopK$cik),  "10-K", loopK[1,"facts"]))
     }
     if (dim(loopQ)[1] > 0){
       names[names$Account.Name %in% company,]$found <- 2
@@ -52,7 +52,7 @@ recent_filings <- function(names, sec_data, flag = "standard"){
   result <- as.data.frame(result)
   names(result) <- c("Match", "SEC.Name","SEC.CIK",  "form", "facts")
   result$form <- trim.leading(result$form)
-  result$facts <- as.numeric(result$facts)
+  result$facts <- as.numeric(as.character(result$facts))
   result <- dcast(data = result, formula = Match + SEC.Name + SEC.CIK ~ form, fun.aggregate = sum)
 
   if (flag %in% "standard"){
